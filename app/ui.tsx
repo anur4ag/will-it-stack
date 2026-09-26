@@ -4,16 +4,16 @@ import {useChat} from '@ai-sdk/react'
 import {DefaultChatTransport} from 'ai'
 import {useState} from 'react'
 import Markdown from 'react-markdown'
+import type {UIMessage} from 'ai'
 import type {CheckResult, PiModel} from '@/lib/sanity.ts'
+import {EXAMPLES} from '@/lib/examples.ts'
+import recorded from '@/lib/recorded.json'
+
+type Recorded = {question: string; model: string; recordedAt: string; message: UIMessage}
+const RECORDED = new Map((recorded as Recorded[]).map((r) => [r.question, r]))
 
 type Catalog = {boards: {slug: string; name: string; manufacturer: string | null}[]; models: PiModel[]}
 
-const EXAMPLES = [
-  'Can I use a Sense HAT and an Enviro pHAT together on a Raspberry Pi 5?',
-  'I want a Unicorn HAT light show with Pirate Audio sound. Will they share a header?',
-  'Weather station on a Pi 4: environmental sensors plus a small e-ink display. What stacks?',
-  'Will an AB Electronics ADC Pi and RTC Pi clash on I2C?',
-]
 const PRESETS: {label: string; boards: string[]}[] = [
   {label: 'Two audio DACs', boards: ['raspberrypi-dac-plus', 'phat-dac']},
   {label: 'Unicorn HAT + Pirate Audio', boards: ['unicorn-hat', 'pimoroni-pirate-audio-speaker']},
@@ -44,22 +44,37 @@ export function App({catalog}: {catalog: Catalog}) {
 }
 
 function Ask() {
-  const {messages, sendMessage, status, error} = useChat({transport: new DefaultChatTransport({api: '/api/chat'})})
+  const {messages, sendMessage, setMessages, status, error} = useChat({transport: new DefaultChatTransport({api: '/api/chat'})})
   const [input, setInput] = useState('')
+  const [replay, setReplay] = useState<Recorded | null>(null)
   const busy = status === 'submitted' || status === 'streaming'
   const send = (text: string) => {
     if (!text.trim() || busy) return
+    setReplay(null)
     sendMessage({text})
     setInput('')
+  }
+  // Example questions replay a recorded real run first: the live model allows about one question a minute.
+  const example = (q: string) => {
+    const r = RECORDED.get(q)
+    if (!r) return send(q)
+    setReplay(r)
+    setMessages([{id: 'recorded-q', role: 'user', parts: [{type: 'text', text: q}]}, r.message])
   }
   return (
     <section className="card" aria-labelledby="ask-h">
       <h2 id="ask-h">Ask the agent</h2>
+      {replay && (
+        <p className="replay">
+          Recorded run from {new Date(replay.recordedAt).toUTCString().slice(5, 22)} UTC with {replay.model}.{' '}
+          <button className="link" onClick={() => (setMessages([]), send(replay.question))} disabled={busy}>Run it live</button>
+        </p>
+      )}
       <div className="thread">
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.role}`}>
             {m.parts.map((p, i) => {
-              if (p.type === 'text') return m.role === 'user' ? <p key={i}>{p.text}</p> : <div className="md" key={i}><Markdown>{p.text}</Markdown></div>
+              if (p.type === 'text') return m.role === 'user' ? <p key={i}>{p.text}</p> : <Answer key={i} text={p.text} read={kbPathsRead(m)} />
               if (p.type === 'dynamic-tool') return <ToolStep key={i} name={p.toolName} state={p.state} input={p.input} output={'output' in p ? p.output : undefined} />
               if (p.type === 'tool-check_stack') {
                 const part = p as {state: string; input?: unknown; output?: CheckResult}
@@ -75,7 +90,7 @@ function Ask() {
       {!messages.length && (
         <div className="chips">
           {EXAMPLES.map((q) => (
-            <button key={q} className="chip" onClick={() => send(q)} disabled={busy}>{q}</button>
+            <button key={q} className="chip" onClick={() => example(q)} disabled={busy}>{q}</button>
           ))}
         </div>
       )}
@@ -85,6 +100,32 @@ function Ask() {
         <button type="submit" disabled={busy || !input.trim()}>{busy ? 'Working…' : 'Ask'}</button>
       </form>
     </section>
+  )
+}
+
+const kbPathsRead = (m: UIMessage) =>
+  new Set(m.parts.flatMap((p) => (p.type === 'dynamic-tool' && p.toolName === 'knowledge_base_read' ? ((p.input as {paths?: string[]})?.paths ?? []) : [])))
+
+// Knowledge Base citations become badges; one the agent cites without having read it is flagged.
+function Answer({text, read}: {text: string; read: Set<string>}) {
+  const marked = text.replace(/\[kb:\s*([^\]]+)\]/gi, (_, list: string) =>
+    list.split(/[,;]\s*/).map((p) => `\`${read.has(p.trim()) ? 'kb' : 'kb?'} ${p.trim()}\``).join(' '),
+  )
+  return (
+    <div className="md">
+      <Markdown
+        components={{
+          code: ({children}) => {
+            const t = String(children)
+            if (!/^kb\??\s/.test(t)) return <code>{children}</code>
+            const ok = t.startsWith('kb ')
+            return <span className={`cite ${ok ? '' : 'unread'}`} title={ok ? 'Knowledge Base entry the agent read' : 'Cited but not read in this answer'}>{t.replace(/^kb\??\s/, '')}{ok ? '' : ' (not read)'}</span>
+          },
+        }}
+      >
+        {marked}
+      </Markdown>
+    </div>
   )
 }
 

@@ -108,3 +108,10 @@ footer { color: var(--muted); font-size: 0.8rem; margin-top: 24px; }
   .pin.r { grid-template-columns: 26px 1fr; }
   .ask { flex-direction: column; }
 }
+.replay { font-size: 0.85rem; color: var(--muted); background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; }
+.link { background: none; color: var(--accent); padding: 0; min-height: 0; text-decoration: underline; }
+.cite { font-size: 0.75rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--bg); white-space: nowrap; }
+.cite.unread { border-color: var(--warn); color: var(--warn); }
+/* Grid children default to min-width: auto, so one long nowrap line would widen the whole column. */
+.thread > *, .msg.assistant > *, .stack, .header { min-width: 0; }
+.md { overflow-wrap: anywhere; }

@@ -207,6 +207,7 @@ for (const dir of ['audio', 'sense-hat', 'build-hat', 'tv-hat', 'ai-hat-plus', '
 for (const [path, url, topics] of rpiPages) {
   let body = readFileSync(join(RPIDOCS, 'documentation/asciidoc', path), 'utf8').trim()
   if (path.endsWith('interfaces.adoc')) body = body.slice(body.indexOf('== Hardware communication')) // skip SSH/VNC
+  body = body.replace(/\{plus\}/g, '+').replace(/\{cpp\}/g, 'C++') // Asciidoctor built-in attributes ("DAC{plus}")
   const heading = body.match(/^=+\s+(.+)$/m)?.[1] ?? basename(path, '.adoc')
   const accessory = ACCESSORY[path.split('/')[1]]
   const title = path.startsWith('accessories/') ? `${accessory}: ${heading}` : heading
