@@ -98,6 +98,33 @@ test('a later failed check voids an earlier successful one', async () => {
   assert.equal(await r.guardStatus, 'unverified')
 })
 
+// Two check_stack calls in one step: [A] fails, [A, B] succeeds. Only the latest call ([A, B]) counts,
+// whichever finishes first.
+for (const failFirst of [true, false]) {
+  test(`an earlier parallel call failing doesn't void the latest one (${failFirst ? 'error first' : 'result first'})`, async () => {
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    const parallelStub = tool({
+      inputSchema: z.object({boards: z.array(z.string())}),
+      execute: async ({boards}) => {
+        if (boards.length === 1) {
+          await wait(failFirst ? 1 : 25)
+          throw new Error('check failed')
+        }
+        await wait(failFirst ? 25 : 1)
+        return checked('conflicts', boards)
+      },
+    })
+    const r = agentStream({
+      model: scripted([[call('a', ['A']), call('ab', ['A', 'B']), finish('tool-calls')], [...say('**Conflicts**\n\nA and B share pin 12.'), finish('stop')]]),
+      instructions: 't',
+      messages: [{role: 'user', content: 'q'}],
+      tools: {check_stack: parallelStub},
+    })
+    assert.equal(await r.guardStatus, 'ok')
+    assert.match(await r.text, /Checked with the stack checker: A \+ B/)
+  })
+}
+
 test('a contradicting answer is replaced by one built from the check, prose and all', async () => {
   const r = run([
     [call('c1', ['A', 'B']), finish('tool-calls')],

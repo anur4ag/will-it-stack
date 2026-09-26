@@ -62,8 +62,8 @@ type Streamed = {stream: AsyncIterable<TextStreamPart<ToolSet>>; steps: PromiseL
 /**
  * Wraps a streamText result. Tool calls and results pass straight through (so the UI shows progress),
  * but answer text is held until the run finishes and then released through guardAnswer().
- * Only the latest check_stack call counts: starting a new one voids the previous result, and a failed
- * or unfinished one leaves nothing verified.
+ * Only the latest check_stack call counts: starting a new one voids the previous result, and if that
+ * latest call fails or never finishes, nothing is verified. Results and errors of earlier calls are ignored.
  */
 export function guard<R extends Streamed>(result: R) {
   let settle!: (v: {text: string; status: GuardStatus | 'error'}) => void
@@ -83,7 +83,7 @@ export function guard<R extends Streamed>(result: R) {
             const out = part.output as CheckedStack | undefined
             latest = {callId: part.toolCallId, result: out?.report?.verdict ? out : null}
           }
-          if (part.type === 'tool-error' && part.toolName === 'check_stack') latest = {callId: part.toolCallId, result: null}
+          if (part.type === 'tool-error' && part.toolName === 'check_stack' && latest?.callId === part.toolCallId) latest = {callId: part.toolCallId, result: null}
           // Hold each finish-step until we know whether another step follows, so the answer lands inside the last step.
           if (heldFinishStep && part.type !== 'finish') controller.enqueue(heldFinishStep), (heldFinishStep = undefined)
           if (part.type === 'finish-step') {
