@@ -74,7 +74,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 - **Not tested on physical hardware.** Every verdict comes from the pinout.xyz records and the checker in `lib/stack.ts`; nobody plugged these boards in to confirm it.
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
-- For an open question ("what stacks?") it checks one candidate combination; it doesn't search for one that works.
+- Open questions ("what stacks?") can end without a compatible combination: the agent may stop after one or two candidate pairs. The latest evaluation checked one pair; the recorded example checks two and its prose describes only the first (the footer names the second).
 - The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model.
 
 ## How this was built
