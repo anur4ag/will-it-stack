@@ -19,7 +19,9 @@ const CASES: {q: string; boards?: string[]; pi?: string; offTopic?: boolean}[] =
   {q: 'What is a good pizza topping?', offTopic: true},
 ]
 const LABEL = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts', incomplete: 'Incomplete'} as const
-const firstBold = (t: string) => t.match(/\*\*([^*]+)\*\*/)?.[1].trim().toLowerCase() ?? ''
+// Exact match on the first bold phrase, so "Stacks with changes" never counts as "Stacks".
+const firstBold = (t: string) => (t.match(/\*\*([^*]+)\*\*/)?.[1] ?? '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
+const says = (text: string, verdict: keyof typeof LABEL) => firstBold(text) === LABEL[verdict].toLowerCase()
 
 const rows = []
 for (const [n, c] of CASES.entries()) {
@@ -41,8 +43,9 @@ for (const [n, c] of CASES.entries()) {
       tools: calls.map((t) => t.toolName),
       rightBoards: c.boards ? c.boards.every((b) => checkedSlugs.includes(b)) : null,
       checkCalled: checks.length > 0,
-      verdictFaithful: lastCheck ? said.startsWith(LABEL[lastCheck.report.verdict].toLowerCase()) : null,
-      verdictCorrect: expected ? lastCheck?.report.verdict === expected && said.startsWith(LABEL[expected].toLowerCase()) : null,
+      verdictSaid: said,
+      verdictFaithful: lastCheck ? says(r.text, lastCheck.report.verdict) : null,
+      verdictCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null,
       readKb: read.size > 0,
       kbCitations: cited.length,
       unreadCitations: cited.filter((p) => !read.has(p)),
