@@ -14,7 +14,7 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 ```
 
 - **Structured records** (`sanity/schema.ts`): 231 `board` documents listing every header pin they touch (with a role such as `i2c`, `spi`, `i2s`, `uart`, `gpio-out`) and every I2C device address (with alternates), 40 `pin` documents with each GPIO's alternate functions per SoC (BCM2835, BCM2711, RP1), 6 `piModel` documents, and 48 `guide` documents of prose.
-- **The verdict is code, not the model.** `check_stack` finds pins claimed by two boards for non-shareable roles, I2C address collisions (and whether an alternate address frees them), multiple HAT ID EEPROMs, and pins asked to do something their SoC can't. The agent must call it before saying anything about compatibility and may not contradict it.
+- **The verdict is code, not the model.** The output guard in `lib/guard.ts` holds the answer text until the run ends and replaces any verdict that no successful `check_stack` result backs up (or corrects one that contradicts it). `check_stack` finds pins claimed by two boards for non-shareable roles, I2C address collisions (and whether an alternate address frees them), multiple HAT ID EEPROMs, and pins asked to do something their SoC can't. The agent must call it before saying anything about compatibility and may not contradict it.
 - **The Knowledge Base** is built by Sanity Context from 130 documents selected from the dataset (all guides, pins with notes, boards with long descriptions). The agent reads it for fixes and caveats: address jumpers, `dtoverlay` lines, Pi 5 and current Raspberry Pi OS differences, power limits.
 - **Check a stack** on the page runs the same checker without a model.
 
@@ -22,10 +22,10 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 
 | Source | What | License |
 |---|---|---|
-| [pinout-xyz/Pinout.xyz](https://github.com/pinout-xyz/Pinout.xyz) | board overlays, header pin map, per-SoC pin functions, pin notes | CC BY-SA 4.0 |
-| [raspberrypi/documentation](https://github.com/raspberrypi/documentation) | GPIO, SPI, power, RTC, DPI, RP1, interfaces, Python on Raspberry Pi OS, accessory pages | CC BY-SA 4.0 |
+| [pinout-xyz/Pinout.xyz](https://github.com/pinout-xyz/Pinout.xyz) | board overlays, header pin map, per-SoC pin functions, pin notes | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| [raspberrypi/documentation](https://github.com/raspberrypi/documentation) | GPIO, SPI, power, RTC, DPI, RP1, interfaces, Python on Raspberry Pi OS, accessory pages | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 
-Every imported document keeps `source.repo`, `source.path` and `source.commit`. The code in this repository is MIT; the imported data stays CC BY-SA 4.0.
+Every imported document keeps `source.repo`, `source.path` and `source.commit`. The code in this repository is [MIT](LICENSE); the imported data stays [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), as does anything derived from it (the Knowledge Base entries).
 
 Known upstream data issues handled in `scripts/import.ts`:
 - `pi-supply-iot-lora-gateway-hat.md` indents pin 23's `mode: spi` one level too shallow; fixed explicitly.
@@ -47,6 +47,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 
 ## Limits
 
+- **Not tested on physical hardware.** Every verdict comes from the pinout.xyz records and the checker in `lib/stack.ts`; nobody plugged these boards in to confirm it.
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
 - The public demo is rate-limited and runs on free AI Gateway credits; the "Check a stack" panel needs no model.

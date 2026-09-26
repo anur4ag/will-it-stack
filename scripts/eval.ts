@@ -5,6 +5,8 @@ import {writeFileSync, mkdirSync} from 'node:fs'
 import {runAgent} from '../lib/agent.ts'
 import {MODEL} from '../lib/model.ts'
 import {runCheck} from '../lib/sanity.ts'
+import {kbCitations, kbPathsReadFromResults} from '../lib/citations.ts'
+import {VERDICT_LABEL as LABEL, firstBold} from '../lib/guard.ts'
 
 const CASES: {q: string; boards?: string[]; pi?: string; offTopic?: boolean}[] = [
   {q: 'Can I use a Sense HAT and an Enviro pHAT together on a Raspberry Pi 5?', boards: ['sense-hat', 'enviro-phat']},
@@ -18,9 +20,7 @@ const CASES: {q: string; boards?: string[]; pi?: string; offTopic?: boolean}[] =
   {q: 'Weather station on a Pi 4: environmental sensors plus a small e-ink display. What stacks?'},
   {q: 'What is a good pizza topping?', offTopic: true},
 ]
-const LABEL = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts', incomplete: 'Incomplete'} as const
 // Exact match on the first bold phrase, so "Stacks with changes" never counts as "Stacks".
-const firstBold = (t: string) => (t.match(/\*\*([^*]+)\*\*/)?.[1] ?? '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim()
 const says = (text: string, verdict: keyof typeof LABEL) => firstBold(text) === LABEL[verdict].toLowerCase()
 
 const rows = []
@@ -29,23 +29,25 @@ for (const [n, c] of CASES.entries()) {
   const t0 = Date.now()
   try {
     const result = await runAgent([{role: 'user', content: c.q}])
-    const r = {text: await result.text, steps: await result.steps, totalUsage: await result.totalUsage}
+    const r = {text: await result.text, steps: await result.steps, totalUsage: await result.totalUsage, guard: await result.guardStatus}
     const calls = r.steps.flatMap((s) => s.toolCalls)
     const checks = r.steps.flatMap((s) => s.toolResults).filter((t) => t.toolName === 'check_stack')
     const lastCheck = checks.at(-1)?.output as Awaited<ReturnType<typeof runCheck>> | undefined
     const checkedSlugs = (calls.filter((t) => t.toolName === 'check_stack').at(-1)?.input as {boards?: string[]})?.boards ?? []
     const expected = c.boards ? (await runCheck(c.boards, c.pi ?? 'raspberry-pi-5')).report.verdict : undefined
-    const said = firstBold(r.text)
-    const read = new Set(calls.filter((t) => t.toolName === 'knowledge_base_read').flatMap((t) => (t.input as {paths?: string[]}).paths ?? []))
-    const cited = [...r.text.matchAll(/\[kb:\s*([^\]]+)\]/gi)].flatMap((m) => m[1].split(/[,;]\s*/).map((p) => p.trim()))
+    const raw = r.steps.map((s) => s.text).filter(Boolean).join('\n\n') // what the model wrote, before the output guard
+    const said = firstBold(raw)
+    const read = kbPathsReadFromResults(r.steps.flatMap((s) => s.toolResults))
+    const cited = kbCitations(raw)
     rows.push({
       q: c.q,
       tools: calls.map((t) => t.toolName),
       rightBoards: c.boards ? c.boards.every((b) => checkedSlugs.includes(b)) : null,
       checkCalled: checks.length > 0,
       verdictSaid: said,
-      verdictFaithful: lastCheck ? says(r.text, lastCheck.report.verdict) : null,
-      verdictCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null,
+      modelVerdictFaithful: lastCheck ? says(raw, lastCheck.report.verdict) : null, // the model, unaided
+      shownVerdictCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null, // what the user sees
+      guard: r.guard, // 'ok' | 'unverified' | 'corrected': did the output guard have to step in?
       readKb: read.size > 0,
       kbCitations: cited.length,
       unreadCitations: cited.filter((p) => !read.has(p)),

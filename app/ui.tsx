@@ -7,6 +7,7 @@ import Markdown from 'react-markdown'
 import type {UIMessage} from 'ai'
 import type {CheckResult, PiModel} from '@/lib/sanity.ts'
 import {EXAMPLES} from '@/lib/examples.ts'
+import {kbPathsRead} from '@/lib/citations.ts'
 import recorded from '@/lib/recorded.json'
 
 type Recorded = {question: string; model: string; recordedAt: string; message: UIMessage}
@@ -35,9 +36,11 @@ export function App({catalog}: {catalog: Catalog}) {
       <Ask />
       <Check catalog={catalog} />
       <footer>
-        Board and pin data from <a href="https://pinout.xyz">Pinout.xyz</a> (CC BY-SA 4.0) and the{' '}
-        <a href="https://www.raspberrypi.com/documentation/">Raspberry Pi documentation</a> (CC BY-SA 4.0), stored in Sanity project 31brl2ka.{' '}
-        <a href="https://github.com/anur4ag/will-it-stack">Source</a>. Not affiliated with Raspberry Pi Ltd or Pinout.xyz. Double-check before wiring anything that carries 5&nbsp;V.
+        Board and pin data from <a href="https://pinout.xyz">Pinout.xyz</a> and the{' '}
+        <a href="https://www.raspberrypi.com/documentation/">Raspberry Pi documentation</a>, both{' '}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, stored in Sanity project 31brl2ka. Code:{' '}
+        <a href="https://github.com/anur4ag/will-it-stack">MIT</a>. Not affiliated with Raspberry Pi Ltd or Pinout.xyz. Verdicts come from those records
+        and have not been tested on physical hardware: double-check before wiring anything, especially 5&nbsp;V.
       </footer>
     </main>
   )
@@ -74,7 +77,7 @@ function Ask() {
         {messages.map((m) => (
           <div key={m.id} className={`msg ${m.role}`}>
             {m.parts.map((p, i) => {
-              if (p.type === 'text') return m.role === 'user' ? <p key={i}>{p.text}</p> : <Answer key={i} text={p.text} read={kbPathsRead(m)} />
+              if (p.type === 'text') return m.role === 'user' ? <p key={i}>{p.text}</p> : <Answer key={i} text={p.text} read={kbPathsRead(m.parts)} />
               if (p.type === 'dynamic-tool') return <ToolStep key={i} name={p.toolName} state={p.state} input={p.input} output={'output' in p ? p.output : undefined} />
               if (p.type === 'tool-check_stack') {
                 const part = p as {state: string; input?: unknown; output?: CheckResult}
@@ -103,8 +106,6 @@ function Ask() {
   )
 }
 
-const kbPathsRead = (m: UIMessage) =>
-  new Set(m.parts.flatMap((p) => (p.type === 'dynamic-tool' && p.toolName === 'knowledge_base_read' ? ((p.input as {paths?: string[]})?.paths ?? []) : [])))
 
 // Knowledge Base citations become badges; one the agent cites without having read it is flagged.
 function Answer({text, read}: {text: string; read: Set<string>}) {

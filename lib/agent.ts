@@ -1,5 +1,6 @@
 import {createMCPClient} from '@ai-sdk/mcp'
-import {isStepCount, streamText, tool, type ModelMessage} from 'ai'
+import {isStepCount, streamText, tool, type LanguageModel, type ModelMessage, type ToolSet} from 'ai'
+import {guard} from './guard.ts'
 import {z} from 'zod'
 import {MODEL} from './model.ts'
 import {runCheck} from './sanity.ts'
@@ -77,17 +78,20 @@ Do not speculate past the sources: if neither check_stack nor the Knowledge Base
 Stay on Raspberry Pi hardware. If asked about anything else, say what you can help with instead.`
 
 
-// One agent run, shared by the API route, scripts/record.ts and scripts/eval.ts so they can't drift apart.
+// The model call itself, with the output guard: shared by the app, the scripts and the tests.
+export function agentStream(opts: {model: LanguageModel; instructions: string; messages: ModelMessage[]; tools: ToolSet; onEnd?: () => Promise<void>}) {
+  return guard(
+    streamText({
+      ...opts,
+      stopWhen: isStepCount(8),
+      maxOutputTokens: 1500,
+      maxRetries: 4, // rides out a brief 429 from the free-tier rate limit
+    }),
+  )
+}
+
+// One agent run against the live Context endpoints.
 export async function runAgent(messages: ModelMessage[]) {
   const [{tools, close}, context] = await Promise.all([contextTools(), initialContext()])
-  return streamText({
-    model: MODEL,
-    instructions: `${INSTRUCTIONS}\n\n${context}`,
-    messages,
-    tools: {...tools, check_stack: checkStackTool},
-    stopWhen: isStepCount(8),
-    maxOutputTokens: 1500,
-    maxRetries: 4, // rides out a brief 429 from the free-tier rate limit
-    onEnd: close,
-  })
+  return agentStream({model: MODEL, instructions: `${INSTRUCTIONS}\n\n${context}`, messages, tools: {...tools, check_stack: checkStackTool}, onEnd: close})
 }
