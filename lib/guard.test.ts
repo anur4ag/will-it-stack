@@ -34,6 +34,15 @@ test('guardAnswer replaces an answer that is cut off or talks about other boards
   assert.doesNotMatch(other.text, /A and C/)
 })
 
+test('guardAnswer drops a "Checked with" line the model wrote itself (imitating the history)', () => {
+  const g = guardAnswer('**Conflicts**\n\nA and B clash on pin 12.\n\n_Checked with the stack checker: A + C on Raspberry Pi 5 → Stacks._', checked('conflicts'))
+  assert.equal(g.status, 'ok')
+  assert.equal(g.text.match(/Checked with the stack checker/g)?.length, 1)
+  assert.doesNotMatch(g.text, /A \+ C|→ Stacks/)
+  // Boards named only in an imitated line don't count as named.
+  assert.equal(guardAnswer('**Conflicts**\n\nThey clash.\n\n_Checked with the stack checker: A + B → Conflicts._', checked('conflicts')).status, 'replaced')
+})
+
 test('guardAnswer replaces the whole answer when the verdict disagrees or is missing', () => {
   for (const t of ['**Stacks**\n\nThere are no conflicts. Connect both boards as-is.', 'They are fine together, connect both boards as-is.']) {
     const g = guardAnswer(t, checked('conflicts'))

@@ -1,6 +1,6 @@
 // ponytail: in-memory limits per server instance. The binding constraint is the AI Gateway free tier
 // (5 model requests per minute for the whole team, about one agent run); move to a shared store if needed.
-const GLOBAL_GAP_MS = 50_000 // one live run per 50 s across all visitors
+const GLOBAL_GAP_MS = 50_000 // one live run per 50 s across all visitors of this instance (Vercel may run several)
 const PER_IP = 4 // live runs per IP per window
 const WINDOW_MS = 15 * 60_000
 const hits = new Map<string, number[]>()

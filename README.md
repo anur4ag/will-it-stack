@@ -75,7 +75,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
 - Open questions ("what stacks?") can end without a compatible combination: the agent may stop after one or two candidate pairs. In the latest evaluation it checked one pair before the 8-step limit; the recorded example checks two and its prose describes only the first (the footer names the second).
-- The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model.
+- The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model. The site's own limits (one live run per 50 s, four per visitor per 15 minutes) are kept in memory per server instance, so with several instances they're looser; the hard ceiling is the AI Gateway free tier and its free credits, with auto top-up off. Heavy use can make the live agent unavailable, not cost money.
 
 ## How this was built
 

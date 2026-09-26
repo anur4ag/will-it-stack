@@ -38,6 +38,9 @@ export function answerFromCheck(c: CheckedStack): string {
 export type GuardStatus = 'ok' | 'unverified' | 'replaced'
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+// The "Checked with" line is the guard's to write. In a follow-up question the model sees it in the history
+// and can imitate it, possibly naming a different check, so any copy in the model's text is dropped.
+const dropCheckedLines = (t: string) => t.replace(/^.*Checked with the stack checker.*$/gim, '').replace(/\n{3,}/g, '\n\n').trim()
 
 /**
  * Fail closed. `check` is the result of the most recent check_stack call, or null if there was none,
@@ -49,6 +52,7 @@ const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
  */
 export function guardAnswer(text: string, check: CheckedStack | null, opts: {truncated?: boolean} = {}): {text: string; status: GuardStatus} {
   if (!check) return {text: UNVERIFIED, status: 'unverified'}
+  text = dropCheckedLines(text)
   const labelMatches = LABEL_TO_VERDICT.get(firstBold(text)) === check.report.verdict
   const words = ` ${squash(text)} `
   const namesBoards = check.report.boards.every((b) => words.includes(` ${squash(b)} `))
