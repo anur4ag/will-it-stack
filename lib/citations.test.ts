@@ -14,4 +14,5 @@ test('only successful Knowledge Base reads count as read', () => {
 
 test('citations are parsed per path', () => {
   assert.deepEqual(kbCitations('x [kb: buses/i2c, gpio_pinout/pin_functions] y [kb: power]'), ['buses/i2c', 'gpio_pinout/pin_functions', 'power'])
+  assert.deepEqual(kbCitations('[kb: audio_hats/setup, kb: audio_hats/official_boards]'), ['audio_hats/setup', 'audio_hats/official_boards'])
 })

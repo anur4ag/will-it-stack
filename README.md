@@ -4,6 +4,8 @@ An agent that tells you whether Raspberry Pi add-on boards (HATs, pHATs, bonnets
 
 **Live:** https://will-it-stack.vercel.app · **Sanity project:** `31brl2ka` (public `production` dataset) · Built for the [DEV Sanity Challenge](https://dev.to/challenges/sanity-2026-09-16), Path One.
 
+![Check a stack: Unicorn HAT + Pirate Audio collide on physical pin 12 (GPIO 18), PWM vs I2S](docs/screenshots/check-unicorn-pirate.png)
+
 ## How it works
 
 ```
@@ -17,6 +19,8 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 - **The verdict is code, not the model, and the output fails closed.** `lib/guard.ts` holds the answer text until the run ends. Only the latest `check_stack` call counts (a new call voids the previous result). With no successful check, the visible answer is a fixed "Not verified" message whatever the model wrote. The model's own answer is shown only if its verdict label matches the check, it names every checked board, and it wasn't cut off; it then gets a line naming exactly which boards and Pi were checked. Otherwise the whole answer is replaced by one built from the check report. Once the agent has started using tools, it must keep calling them until a check succeeds. `check_stack` finds pins claimed by two boards for non-shareable roles, I2C address collisions (and whether alternate addresses free them all), multiple HAT ID EEPROMs, and pins asked to do something their SoC can't. Unknown boards make the verdict `incomplete`, never compatible.
 - **The Knowledge Base** is built by Sanity Context from 130 documents selected from the dataset (all guides, pins with notes, boards with long descriptions). The agent reads it for fixes and caveats: address jumpers, `dtoverlay` lines, Pi 5 and current Raspberry Pi OS differences, power limits.
 - **Check a stack** on the page runs the same checker without a model.
+
+![A recorded agent run: two GROQ queries, the stack check, a Knowledge Base read, and the answer with its citations and the "Checked with" footer](docs/screenshots/agent-adc-rtc.png)
 
 ## Data
 

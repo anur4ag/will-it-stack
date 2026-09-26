@@ -7,7 +7,7 @@ import Markdown from 'react-markdown'
 import type {UIMessage} from 'ai'
 import type {CheckResult, PiModel} from '@/lib/sanity.ts'
 import {EXAMPLES} from '@/lib/examples.ts'
-import {kbPathsRead} from '@/lib/citations.ts'
+import {kbPathsRead, splitCitation} from '@/lib/citations.ts'
 import recorded from '@/lib/recorded.json'
 
 type Recorded = {question: string; model: string; recordedAt: string; message: UIMessage}
@@ -109,9 +109,7 @@ function Ask() {
 
 // Knowledge Base citations become badges; one the agent cites without having read it is flagged.
 function Answer({text, read}: {text: string; read: Set<string>}) {
-  const marked = text.replace(/\[kb:\s*([^\]]+)\]/gi, (_, list: string) =>
-    list.split(/[,;]\s*/).map((p) => `\`${read.has(p.trim()) ? 'kb' : 'kb?'} ${p.trim()}\``).join(' '),
-  )
+  const marked = text.replace(/\[kb:\s*([^\]]+)\]/gi, (_, list: string) => splitCitation(list).map((p) => `\`${read.has(p) ? 'kb' : 'kb?'} ${p}\``).join(' '))
   return (
     <div className="md">
       <Markdown

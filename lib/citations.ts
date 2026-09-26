@@ -12,4 +12,6 @@ export const kbPathsRead = (parts: Part[]) =>
 export const kbPathsReadFromResults = (results: {toolName: string; input: unknown; output: unknown}[]) =>
   new Set(results.flatMap((r) => (r.toolName === 'knowledge_base_read' && ok(r.output) ? paths(r.input) : [])))
 
-export const kbCitations = (text: string) => [...text.matchAll(/\[kb:\s*([^\]]+)\]/gi)].flatMap((m) => m[1].split(/[,;]\s*/).map((p) => p.trim()))
+// "[kb: a, b]" and "[kb: a, kb: b]" both mean paths a and b.
+export const splitCitation = (list: string) => list.split(/[,;]\s*/).map((p) => p.trim().replace(/^kb:\s*/i, '')).filter(Boolean)
+export const kbCitations = (text: string) => [...text.matchAll(/\[kb:\s*([^\]]+)\]/gi)].flatMap((m) => splitCitation(m[1]))

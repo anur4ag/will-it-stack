@@ -49,6 +49,7 @@ for (const [n, c] of CASES.entries()) {
       shownLabelCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null, // label agreement of what the user sees, not full-answer correctness
       guard: r.guard, // 'ok' | 'unverified' | 'replaced': did the output guard have to step in?
       readKb: read.size > 0,
+      kbRead: [...read],
       kbCitations: cited.length,
       unreadCitations: cited.filter((p) => !read.has(p)),
       offTopicHandled: c.offTopic ? calls.length === 0 : null,
