@@ -14,7 +14,7 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 ```
 
 - **Structured records** (`sanity/schema.ts`): 231 `board` documents listing every header pin they touch (with a role such as `i2c`, `spi`, `i2s`, `uart`, `gpio-out`) and every I2C device address (with alternates), 40 `pin` documents with each GPIO's alternate functions per SoC (BCM2835, BCM2711, RP1), 6 `piModel` documents, and 48 `guide` documents of prose.
-- **The verdict is code, not the model, and the output fails closed.** `lib/guard.ts` holds the answer text until the run ends. Only the latest `check_stack` call counts (a new call voids the previous result). With no successful check, the visible answer is a fixed "Not verified" message whatever the model wrote; if the model's verdict label matches the check, its answer is shown with a line naming exactly which boards and Pi were checked; otherwise the whole answer is replaced by one built from the check report. `check_stack` finds pins claimed by two boards for non-shareable roles, I2C address collisions (and whether alternate addresses free them all), multiple HAT ID EEPROMs, and pins asked to do something their SoC can't. Unknown boards make the verdict `incomplete`, never compatible.
+- **The verdict is code, not the model, and the output fails closed.** `lib/guard.ts` holds the answer text until the run ends. Only the latest `check_stack` call counts (a new call voids the previous result). With no successful check, the visible answer is a fixed "Not verified" message whatever the model wrote. The model's own answer is shown only if its verdict label matches the check, it names every checked board, and it wasn't cut off; it then gets a line naming exactly which boards and Pi were checked. Otherwise the whole answer is replaced by one built from the check report. Once the agent has started using tools, it must keep calling them until a check succeeds. `check_stack` finds pins claimed by two boards for non-shareable roles, I2C address collisions (and whether alternate addresses free them all), multiple HAT ID EEPROMs, and pins asked to do something their SoC can't. Unknown boards make the verdict `incomplete`, never compatible.
 - **The Knowledge Base** is built by Sanity Context from 130 documents selected from the dataset (all guides, pins with notes, boards with long descriptions). The agent reads it for fixes and caveats: address jumpers, `dtoverlay` lines, Pi 5 and current Raspberry Pi OS differences, power limits.
 - **Check a stack** on the page runs the same checker without a model.
 
@@ -50,7 +50,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 - **Not tested on physical hardware.** Every verdict comes from the pinout.xyz records and the checker in `lib/stack.ts`; nobody plugged these boards in to confirm it.
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
-- The public demo is rate-limited and runs on free AI Gateway credits; the "Check a stack" panel needs no model.
+- The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model.
 
 ## How this was built
 

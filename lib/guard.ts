@@ -37,17 +37,24 @@ export function answerFromCheck(c: CheckedStack): string {
 
 export type GuardStatus = 'ok' | 'unverified' | 'replaced'
 
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
 /**
  * Fail closed. `check` is the result of the most recent check_stack call, or null if there was none,
  * or it failed, or it never finished.
  * - no valid check → the fixed UNVERIFIED answer, whatever the model wrote
- * - the model's verdict label matches the check → its answer, plus a line naming exactly what was checked
- * - anything else → an answer built from the check alone
+ * - the model's answer is complete, its verdict label matches the check, and it names every checked board
+ *   → its answer, plus a line naming exactly what was checked
+ * - anything else (wrong or missing label, other boards, cut off) → an answer built from the check alone
  */
-export function guardAnswer(text: string, check: CheckedStack | null): {text: string; status: GuardStatus} {
+export function guardAnswer(text: string, check: CheckedStack | null, opts: {truncated?: boolean} = {}): {text: string; status: GuardStatus} {
   if (!check) return {text: UNVERIFIED, status: 'unverified'}
-  if (LABEL_TO_VERDICT.get(firstBold(text)) === check.report.verdict) return {text: `${text.trim()}\n\n${checkedLine(check)}`, status: 'ok'}
-  return {text: `${answerFromCheck(check)}\n\n_The model's explanation didn't match the stack check, so this answer comes from the check alone._`, status: 'replaced'}
+  const labelMatches = LABEL_TO_VERDICT.get(firstBold(text)) === check.report.verdict
+  const words = ` ${squash(text)} `
+  const namesBoards = check.report.boards.every((b) => words.includes(` ${squash(b)} `))
+  if (labelMatches && namesBoards && !opts.truncated) return {text: `${text.trim()}\n\n${checkedLine(check)}`, status: 'ok'}
+  const why = opts.truncated ? 'was cut off' : !labelMatches ? "didn't match the stack check" : "didn't name the boards that were checked"
+  return {text: `${answerFromCheck(check)}\n\n_The model's explanation ${why}, so this answer comes from the check alone._`, status: 'replaced'}
 }
 
 type Streamed = {stream: AsyncIterable<TextStreamPart<ToolSet>>; steps: PromiseLike<unknown>; totalUsage: PromiseLike<unknown>}
@@ -84,7 +91,7 @@ export function guard<R extends Streamed>(result: R) {
             continue
           }
           if (part.type === 'finish') {
-            const g = guardAnswer(text, latest?.result ?? null)
+            const g = guardAnswer(text, latest?.result ?? null, {truncated: part.finishReason === 'length'})
             controller.enqueue({type: 'text-start', id: 'answer'})
             controller.enqueue({type: 'text-delta', id: 'answer', text: g.text})
             controller.enqueue({type: 'text-end', id: 'answer'})

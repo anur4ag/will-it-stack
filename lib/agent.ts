@@ -85,6 +85,10 @@ export function agentStream(opts: {model: LanguageModel; instructions: string; m
       ...opts,
       stopWhen: isStepCount(8),
       maxOutputTokens: 1500,
+      // Once the agent has started using tools it may not stop until a stack check has succeeded.
+      // (An off-topic question ends at step 0 with no tools, and gets the guard's fixed reply.)
+      prepareStep: ({stepNumber, steps}) =>
+        stepNumber > 0 && !steps.some((s) => s.toolResults.some((r) => r.toolName === 'check_stack')) ? {toolChoice: 'required' as const} : {},
       maxRetries: 4, // rides out a brief 429 from the free-tier rate limit
     }),
   )

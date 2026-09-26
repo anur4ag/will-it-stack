@@ -20,10 +20,17 @@ test('guardAnswer fails closed without a check, whatever the wording', () => {
 })
 
 test('guardAnswer keeps a matching answer and names what was checked', () => {
-  const g = guardAnswer('**Conflicts**\n\nPin 12 clashes.', checked('conflicts'))
+  const g = guardAnswer('**Conflicts**\n\nA and B clash on pin 12.', checked('conflicts'))
   assert.equal(g.status, 'ok')
-  assert.match(g.text, /^\*\*Conflicts\*\*\n\nPin 12 clashes\./)
+  assert.match(g.text, /^\*\*Conflicts\*\*\n\nA and B clash on pin 12\./)
   assert.match(g.text, /Checked with the stack checker: A \+ B on Raspberry Pi 5 → Conflicts/)
+})
+
+test('guardAnswer replaces an answer that is cut off or talks about other boards', () => {
+  assert.equal(guardAnswer('**Conflicts**\n\nA and B clash on pin', checked('conflicts'), {truncated: true}).status, 'replaced')
+  const other = guardAnswer('**Conflicts**\n\nA and C clash.', checked('conflicts', ['A', 'B']))
+  assert.equal(other.status, 'replaced')
+  assert.doesNotMatch(other.text, /A and C/)
 })
 
 test('guardAnswer replaces the whole answer when the verdict disagrees or is missing', () => {
@@ -103,13 +110,28 @@ test('a contradicting answer is replaced by one built from the check, prose and 
   assert.equal(await r.guardStatus, 'replaced')
 })
 
+test('once tools are in use, the agent is made to keep going until a check succeeds', async () => {
+  const seen: unknown[] = []
+  const model = scripted([
+    [{type: 'tool-call', toolCallId: 'l1', toolName: 'lookup', input: '{}'}, finish('tool-calls')],
+    [call('c1', ['A', 'B']), finish('tool-calls')],
+    [...say('**Conflicts**\n\nA and B share pin 12.'), finish('stop')],
+  ])
+  const orig = model.doStream.bind(model)
+  model.doStream = async (o: {toolChoice?: unknown}) => (seen.push(o.toolChoice), orig(o as never))
+  const lookup = tool({inputSchema: z.object({}), execute: async () => 'boards found'})
+  const r = agentStream({model, instructions: 't', messages: [{role: 'user', content: 'q'}], tools: {lookup, check_stack: checkStub}})
+  assert.equal(await r.guardStatus, 'ok')
+  assert.deepEqual(seen, [{type: 'auto'}, {type: 'required'}, {type: 'auto'}]) // free at first (off-topic), required until checked
+})
+
 test('a matching answer is kept and bound to the checked boards', async () => {
   const r = run([
     [call('c1', ['A', 'B']), finish('tool-calls')],
-    [...say('**Conflicts**\n\nPin 12 is used by both.'), finish('stop')],
+    [...say('**Conflicts**\n\nA and B both use pin 12.'), finish('stop')],
   ])
   const text = await r.text
-  assert.match(text, /^\*\*Conflicts\*\*\n\nPin 12 is used by both\./)
+  assert.match(text, /^\*\*Conflicts\*\*\n\nA and B both use pin 12\./)
   assert.match(text, /Checked with the stack checker: A \+ B on Raspberry Pi 5 → Conflicts/)
   assert.equal(await r.guardStatus, 'ok')
 })
