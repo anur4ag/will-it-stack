@@ -46,8 +46,8 @@ for (const [n, c] of CASES.entries()) {
       checkCalled: checks.length > 0,
       verdictSaid: said,
       modelVerdictFaithful: lastCheck ? says(raw, lastCheck.report.verdict) : null, // the model, unaided
-      shownVerdictCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null, // what the user sees
-      guard: r.guard, // 'ok' | 'unverified' | 'corrected': did the output guard have to step in?
+      shownLabelCorrect: expected ? lastCheck?.report.verdict === expected && says(r.text, expected) : null, // label agreement of what the user sees, not full-answer correctness
+      guard: r.guard, // 'ok' | 'unverified' | 'replaced': did the output guard have to step in?
       readKb: read.size > 0,
       kbCitations: cited.length,
       unreadCitations: cited.filter((p) => !read.has(p)),
