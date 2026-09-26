@@ -1,0 +1,288 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "at": "2026-09-26T21:24:44.423Z",
+  "rows": [
+    {
+      "q": "Can I use a Sense HAT and an Enviro pHAT together on a Raspberry Pi 5?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "stacks",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "io_expanders/sensor_special_hats",
+        "buses/i2c"
+      ],
+      "kbCitations": 1,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 14.6,
+      "tokens": {
+        "in": 44125,
+        "out": 1308
+      },
+      "answer": "**Stacks**\n\nThe Sense HAT and Enviro pHAT can stack on a Raspberry Pi 5 without pin conflicts.\n\n**Caveats:**\n*   **Physical stacking:** Both boards use the full 40-pin header, so physically stacking them will require a stacking header, extender, or splitter [board: enviro-phat, board: sense-hat].\n*   **I2C Bus Sharing:** Both boards use the I2C bus (GPIO 2/3, physical pins 3/5). The Sense HAT uses I2C addresses `0x1c` (accelerometer/magnetometer), `0x46` (LED matrix/joystick), `0x5c` (pressure/temperature), `0x5f` (humidity/temperature), and `0x6a` (gyroscope). The Enviro pHAT uses I2C addresses `0x1d` (LSM303D), `0x29` (TCS3472), `0x49` (ADS1015), and `0x77` (BMP280). These addresses do not conflict. The I2C pins (physical 3 and 5) have fixed 1.8 kΩ pull-up resistors to 3.3 V on the Raspberry Pi board itself [kb: buses/i2c].\n\nThe data cannot tell you about physical clearance issues beyond the GPIO header, such as components on one board touching components on another.\n\n_Checked with the stack checker: Enviro pHAT + Sense HAT on Raspberry Pi 5 → Stacks._"
+    },
+    {
+      "q": "Will a Unicorn HAT work alongside a Pirate Audio Speaker?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "alt_functions/pwm_gpclk/pwm_and_gpclk",
+        "audio_hats/audioplus",
+        "audio_hats/official_boards",
+        "buses/i2s_pcm"
+      ],
+      "kbCitations": 3,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 10.5,
+      "tokens": {
+        "in": 46441,
+        "out": 939
+      },
+      "answer": "**Conflicts** on Raspberry Pi 5.\n\n*   **Pin 12 (GPIO 18)**: Conflicts between Unicorn HAT (PWM Data) and Pirate Audio Speaker (I2S).\n\n**Caveats:**\n*   I2S cannot be shared between HATs because it has no built-in addressing or chip-select mechanism. The four PCM lines form a single bus carrying one synchronised audio stream. Any second device on the same lines would receive the identical bit clock and frame sync, making independent addressing impossible. [kb: buses/i2s_pcm]\n*   Physical pin 12 (GPIO 18) is one of two hardware PWM channels but also the I2S/PCM clock line. If you are using an I2S audio HAT, this pin will conflict with PWM. [kb: alt_functions/pwm_gpclk/pwm_and_gpclk, buses/i2s_pcm]\n*   Unicorn HAT and Pirate Audio Speaker use the full 40-pin header, so physically stacking them needs a stacking header, extender or splitter. [check_stack]\n\nThe data does not list a fix or workaround for this conflict.\n\n_Checked with the stack checker: Unicorn HAT + Pirate Audio Speaker on Raspberry Pi 5 → Conflicts._"
+    },
+    {
+      "q": "Will an AB Electronics ADC Pi and RTC Pi clash on I2C?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "stacks with changes",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "buses/i2c"
+      ],
+      "kbCitations": 2,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 11,
+      "tokens": {
+        "in": 33582,
+        "out": 862
+      },
+      "answer": "**Stacks with changes**\n\n*   **I2C conflict**: I2C address 0x68, between ADC Pi's MCP3424 and RTC Pi's DS1307.\n    *   **Fix**: Move ADC Pi's MCP3424 to an alternate address such as 0x6a. RTC Pi's DS1307 will remain at 0x68.\n\n**Caveats:**\n*   I2C is a multi-drop bus, meaning multiple devices share the same two wires and are distinguished by their 7-bit address. If two HATs attempt to use the same address on the same bus, a conflict will occur [kb: buses/i2c].\n*   I2C is disabled by default on a stock Raspberry Pi OS image. It can be enabled via `raspi-config` or by adding `dtparam=i2c_arm=on` to `/boot/firmware/config.txt` [kb: buses/i2c].\n*   ADC Pi and RTC Pi use the full 40-pin header, so physically stacking them needs a stacking header, extender or splitter.\n\n**What the data cannot tell you:**\n*   Physical clearance between the stacked boards.\n\n_Checked with the stack checker: ADC Pi + RTC Pi on Raspberry Pi 5 → Stacks with changes._"
+    },
+    {
+      "q": "Can I put a Fan SHIM under an Inky pHAT on my Pi 5?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "buses/i2c",
+        "gpio_pinout/pin_functions",
+        "hat_eeprom"
+      ],
+      "kbCitations": 4,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 16.9,
+      "tokens": {
+        "in": 44256,
+        "out": 1423
+      },
+      "answer": "**Conflicts**\n\nThe Inky pHAT and Fan SHIM conflict on your Raspberry Pi 5:\n*   **Physical pin 5 (BCM 3)**: The Inky pHAT uses this for I2C (SCL), while the Fan SHIM uses it as a GPIO input for \"Wake\". This is a direct conflict as I2C communication and a general-purpose input cannot reliably share the same pin [kb: buses/i2c, gpio_pinout/pin_functions].\n*   **Physical pin 11 (BCM 17)**: The Inky pHAT uses this as a GPIO input for \"Busy\", while the Fan SHIM uses it as a GPIO input for \"Button\". These are conflicting uses of the same pin.\n\nThe data does not list a fix or workaround for these specific conflicts.\n\n**Caveats**\n*   Physical pin 5 (GPIO 3), used for I2C, has fixed 1.8 kΩ pull-up resistors on the board, making it unsuitable for general-purpose I/O if a pull-up is not desired [kb: buses/i2c, gpio_pinout/pin_functions].\n*   The Inky pHAT uses an ID EEPROM (on I2C0, physical pins 27/28), which is compatible on its own [board: inkyphat], but the stacking conflicts on other pins are not resolved.\n\nThe data cannot tell you about physical clearance issues between these two boards.\n\n_Checked with the stack checker: Inky pHAT + Fan SHIM on Raspberry Pi 5 → Conflicts._"
+    },
+    {
+      "q": "Raspberry Pi DAC+ and the Pimoroni pHAT DAC on one Pi 5, possible?",
+      "tools": [
+        "groq_query",
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "audio_hats/official_boards",
+        "audio_hats/audioplus",
+        "buses/i2s_pcm"
+      ],
+      "kbCitations": 2,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 13.6,
+      "tokens": {
+        "in": 45829,
+        "out": 1182
+      },
+      "answer": "**Conflicts**\n\n*   **Pin 12 (GPIO 18):** Conflicts between DAC+ (i2s) and pHAT DAC (i2s).\n*   **Pin 35 (GPIO 19):** Conflicts between DAC+ (i2s) and pHAT DAC (i2s).\n*   **Pin 40 (GPIO 21):** Conflicts between DAC+ (i2s) and pHAT DAC (i2s).\n\n**Caveats:**\n*   I2S cannot be shared between HATs because the interface has no built-in addressing or chip-select mechanism. Only one I2S peripheral can be active on the header at a time. [kb: buses/i2s_pcm]\n*   GPIO 18 (physical pin 12) is also used by the Raspberry Pi's onboard 3.5 mm analogue audio jack (on models that have one). Enabling I2S for an external DAC and enabling onboard audio simultaneously will conflict on this pin. Disable onboard audio (`dtparam=audio=off`) when using an I2S HAT. [kb: buses/i2s_pcm]\n\nThe data lists no fix for these conflicts.\nThe data cannot tell you about physical clearance when using a stacking header.\n\n_Checked with the stack checker: DAC+ + pHAT DAC on Raspberry Pi 5 → Conflicts._"
+    },
+    {
+      "q": "Explorer HAT Pro plus a Unicorn HAT HD on a Pi 4?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "stacks with changes",
+      "modelVerdictFaithful": false,
+      "shownLabelCorrect": true,
+      "guard": "replaced",
+      "readKb": true,
+      "kbRead": [
+        "hat_eeprom"
+      ],
+      "kbCitations": 1,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 13,
+      "tokens": {
+        "in": 41238,
+        "out": 971
+      },
+      "answer": "**Stacks** for Explorer HAT Pro + Unicorn HAT HD on Raspberry Pi 4 Model B.\n\n- **HAT ID EEPROM** (warning): More than one board carries a HAT ID EEPROM on the ID_SD/ID_SC pins (27/28); only one can be probed at boot.\n\n- Explorer HAT Pro and Unicorn HAT HD use the full 40-pin header, so physically stacking them needs a stacking header, extender or splitter.\n\n_The model's explanation didn't match the stack check, so this answer comes from the check alone._"
+    },
+    {
+      "q": "Automation HAT and Display-o-Tron HAT together on a Pi 3B+?",
+      "tools": [
+        "groq_query",
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "buses/i2c",
+        "hat_eeprom",
+        "gpio_pinout/pin_functions",
+        "power_management_hats/gpio_signal_ups"
+      ],
+      "kbCitations": 2,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 15.5,
+      "tokens": {
+        "in": 47979,
+        "out": 1927
+      },
+      "answer": "**Conflicts**\n\n*   **Pin 32 (BCM 12) conflict:** Automation HAT uses it as `gpio-out` (Output 2); Display-o-Tron HAT uses it as `gpio-out` (LCD Reset).\n*   **I2C address 0x54 conflict:** Automation HAT's `sn3218` conflicts with Display-o-Tron HAT's `sn3218` at address 0x54. Display-o-Tron HAT's `sn3218` has no free alternate address, so 0x54 stays contested. An I2C multiplexer is the usual way out.\n*   **HAT ID EEPROM conflict:** More than one board carries a HAT ID EEPROM on physical pins 27/28 (GPIO 0/1); only one can be probed at boot.\n\n**Caveats**\n*   Automation HAT and Display-o-Tron HAT use the full 40-pin header, so physically stacking them needs a stacking header, extender or splitter. [check_stack]\n*   I2C needs to be enabled in `raspi-config` or by adding `dtparam=i2c_arm=on` to `/boot/firmware/config.txt` [kb: buses/i2c].\n*   When stacking multiple HATs, at most one should present an EEPROM at the standard address (physical pins 27/28 - GPIO 0/1). The others must either omit an EEPROM or disable it; otherwise the Pi cannot reliably read either board's identity data [kb: hat_eeprom].\n\n**What the data cannot tell you**\n*   Whether the boards physically clear each other when stacked (beyond using the full 40-pin header).\n*   Specific software workarounds to reassign GPIO 12 on either board.\n*   Detailed steps for disabling the HAT ID EEPROM on these specific boards.\n*   Specific instructions on which I2C multiplexer to use or how to configure it for this exact combination of boards.\n\n_Checked with the stack checker: Automation HAT + Display-o-Tron HAT on Raspberry Pi 3 Model B+ → Conflicts._"
+    },
+    {
+      "q": "I have a Pirate Audio Speaker. Can I add a Fan SHIM for cooling?",
+      "tools": [
+        "groq_query",
+        "check_stack",
+        "knowledge_base_read"
+      ],
+      "rightBoards": true,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": true,
+      "guard": "ok",
+      "readKb": true,
+      "kbRead": [
+        "buses/i2s_pcm",
+        "alt_functions/pwm_gpclk/pwm_and_gpclk",
+        "audio_hats/official_boards"
+      ],
+      "kbCitations": 3,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 13.4,
+      "tokens": {
+        "in": 45194,
+        "out": 1265
+      },
+      "answer": "**Conflicts**\n\n*   **Physical pin 12 (BCM GPIO 18)**: Pirate Audio Speaker uses it for I2S (I2S BCLK); Fan SHIM uses it as a GPIO output for fan control. This is a conflict because I2S cannot be shared between multiple HATs or peripherals [kb: buses/i2s_pcm]. The Fan SHIM cannot be reconfigured to use an alternate pin for fan control [board: pimoroni-fan-shim].\n\n**Caveats:**\n\n*   I2S cannot be shared between HATs because the four PCM lines form a single bus carrying one synchronized audio stream, and there is no built-in addressing or chip-select mechanism [kb: buses/i2s_pcm].\n*   GPIO 18 (physical pin 12) is a common pin that also doubles as a PWM output and conflicts with I2S audio [kb: alt_functions/pwm_gpclk/pwm_and_gpclk].\n\nThe data does not provide a workaround or fix to enable both the Pirate Audio Speaker and the Fan SHIM to operate simultaneously.\n\n_Checked with the stack checker: Pirate Audio Speaker + Fan SHIM on Raspberry Pi 5 → Conflicts._"
+    },
+    {
+      "q": "Weather station on a Pi 4: environmental sensors plus a small e-ink display. What stacks?",
+      "tools": [
+        "groq_query",
+        "groq_query",
+        "groq_query",
+        "groq_query",
+        "groq_query",
+        "groq_query",
+        "check_stack",
+        "groq_query"
+      ],
+      "rightBoards": null,
+      "checkCalled": true,
+      "verdictSaid": "conflicts",
+      "modelVerdictFaithful": true,
+      "shownLabelCorrect": null,
+      "guard": "ok",
+      "readKb": false,
+      "kbRead": [],
+      "kbCitations": 0,
+      "unreadCitations": [],
+      "offTopicHandled": null,
+      "seconds": 29.1,
+      "tokens": {
+        "in": 67548,
+        "out": 3247
+      },
+      "answer": "The combination of Enviro Plus and 2.13 Inch E-Paper pHAT **Conflicts** on a Raspberry Pi 4 Model B.\n\nHere are the conflicts:\n- **Pin 18 (BCM 24):** Enviro Plus uses it as `gpio-out` for the Gas Heater Enable, while the 2.13 Inch E-Paper pHAT uses it as `gpio` for BUSY.\n- **Pin 23 (BCM 11):** Enviro Plus uses it for SPI, while the 2.13 Inch E-Paper pHAT uses it as `gpio` for CLK.\n\nBoth boards use the full 40-pin header, so physically stacking them would require a stacking header, extender, or splitter.\n\nThe data does not provide a fix or workaround for these specific pin conflicts with this combination of boards.\n\n_Checked with the stack checker: Enviro Plus + 2.13 Inch E-Paper pHAT on Raspberry Pi 4 Model B → Conflicts._"
+    },
+    {
+      "q": "What is a good pizza topping?",
+      "tools": [],
+      "rightBoards": null,
+      "checkCalled": false,
+      "verdictSaid": "",
+      "modelVerdictFaithful": null,
+      "shownLabelCorrect": null,
+      "guard": "unverified",
+      "readKb": false,
+      "kbRead": [],
+      "kbCitations": 0,
+      "unreadCitations": [],
+      "offTopicHandled": true,
+      "seconds": 3.2,
+      "tokens": {
+        "in": 9805,
+        "out": 54
+      },
+      "answer": "**Not verified**\n\nI only answer whether specific Raspberry Pi add-on boards can share a header, and only after the stack checker has run on exactly those boards. That didn't happen for this answer, so nothing here is verified. Name the boards (and your Pi model) and ask again, or use **Check a stack directly** below, which runs the checker without the model."
+    }
+  ]
+}

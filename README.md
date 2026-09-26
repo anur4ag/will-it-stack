@@ -22,6 +22,26 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 
 ![A recorded agent run: two GROQ queries, the stack check, a Knowledge Base read, and the answer with its citations and the "Checked with" footer](docs/screenshots/agent-adc-rtc.png)
 
+## Evaluation
+
+`scripts/eval.ts` runs ten questions end to end against the live Context MCP endpoints and the model. Ground truth for each stack is the checker itself, so this measures the agent's job, not the checker. Latest run: [`evidence/eval-2026-09-26T2124-google_gemini-2.5-flash.json`](evidence/eval-2026-09-26T2124-google_gemini-2.5-flash.json) (commit `f24fab4`, `google/gemini-2.5-flash`).
+
+| Measure | Result |
+|---|---|
+| Found the right boards and ran `check_stack` (8 questions naming boards) | 8/8 |
+| Verdict label the user sees matches the checker's ground truth | 8/8 |
+| The model's own verdict matched its check, before the guard | 7/8 |
+| Read the Knowledge Base (8 named-board questions) | 8/8 |
+| Citations of a Knowledge Base path the agent didn't read | 0 |
+| Off-topic question ("What is a good pizza topping?") | no tool calls; fixed "Not verified" reply |
+| Output guard | `ok` 8, `replaced` 1, `unverified` 1 (the off-topic question) |
+| Median time and input tokens per question | 13.5 s, 45k |
+
+- The one unfaithful verdict: for Explorer HAT Pro + Unicorn HAT HD on a Pi 4 the model said "Stacks with changes"; the checker says "Stacks", with a warning that both boards carry a HAT ID EEPROM. The guard replaced the model's answer with one built from the check.
+- The open-ended question ("Weather station on a Pi 4…") has no single ground truth. The agent picked Enviro Plus + 2.13" E-Paper pHAT and correctly reported their two pin conflicts, but didn't read the Knowledge Base or look for a pair that does stack.
+- "Label matches" is label agreement, not proof that every sentence of the answer is right.
+- [`evidence/eval-2026-09-26T2012-…json`](evidence/eval-2026-09-26T2012-google_gemini-2.5-flash.json) is an earlier run on older code, kept for the record: it predates the output guard, uses older field names, and five of its ten rows are free-tier gateway errors (rate limits and one internal error).
+
 ## Data
 
 | Source | What | License |
@@ -54,6 +74,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 - **Not tested on physical hardware.** Every verdict comes from the pinout.xyz records and the checker in `lib/stack.ts`; nobody plugged these boards in to confirm it.
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
+- For an open question ("what stacks?") it checks one candidate combination; it doesn't search for one that works.
 - The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model.
 
 ## How this was built
