@@ -38,7 +38,7 @@ question ─► agent (AI SDK, via Vercel AI Gateway)
 | Median time and input tokens per question | 13.5 s, 45k |
 
 - The one unfaithful verdict: for Explorer HAT Pro + Unicorn HAT HD on a Pi 4 the model said "Stacks with changes"; the checker says "Stacks", with a warning that both boards carry a HAT ID EEPROM. The guard replaced the model's answer with one built from the check.
-- The open-ended question ("Weather station on a Pi 4…") has no single ground truth. The agent picked Enviro Plus + 2.13" E-Paper pHAT and correctly reported their two pin conflicts, but didn't read the Knowledge Base or look for a pair that does stack.
+- The open-ended question ("Weather station on a Pi 4…") has no single ground truth. The agent picked Enviro Plus + 2.13" E-Paper pHAT and correctly reported their two pin conflicts. It ran one more query looking for another pair, then hit the 8-step limit without checking one, and it didn't read the Knowledge Base.
 - "Label matches" is label agreement, not proof that every sentence of the answer is right.
 - [`evidence/eval-2026-09-26T2012-…json`](evidence/eval-2026-09-26T2012-google_gemini-2.5-flash.json) is an earlier run on older code, kept for the record: it predates the output guard, uses older field names, and five of its ten rows are free-tier gateway errors (rate limits and one internal error).
 
@@ -74,7 +74,7 @@ Re-import the data: `PINOUT_DIR=… RPIDOCS_DIR=… npm run import` (needs a pro
 - **Not tested on physical hardware.** Every verdict comes from the pinout.xyz records and the checker in `lib/stack.ts`; nobody plugged these boards in to confirm it.
 - It only knows boards that pinout.xyz documents, and only as well as those records are.
 - It says nothing about physical clearance, current draw of the boards themselves, or software library conflicts beyond what the Knowledge Base covers.
-- Open questions ("what stacks?") can end without a compatible combination: the agent may stop after one or two candidate pairs. The latest evaluation checked one pair; the recorded example checks two and its prose describes only the first (the footer names the second).
+- Open questions ("what stacks?") can end without a compatible combination: the agent may stop after one or two candidate pairs. In the latest evaluation it checked one pair before the 8-step limit; the recorded example checks two and its prose describes only the first (the footer names the second).
 - The live agent is rate-limited: it runs on Vercel AI Gateway's free tier, which allows 5 model requests a minute for the whole account (about one question a minute). The example questions replay recorded real runs of this code (`lib/recorded.json` keeps each run's attempt count and guard status), and the "Check a stack" panel needs no model.
 
 ## How this was built
