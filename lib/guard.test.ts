@@ -5,6 +5,7 @@ import {MockLanguageModelV4} from 'ai/test'
 import {z} from 'zod'
 import {agentStream} from './agent.ts'
 import {UNVERIFIED, guardAnswer, type CheckedStack} from './guard.ts'
+import {recordExample} from './record.ts'
 import type {StackReport} from './stack.ts'
 
 const checked = (verdict: StackReport['verdict'], boards = ['A', 'B']): CheckedStack => ({
@@ -150,6 +151,37 @@ test('once tools are in use, the agent is made to keep going until a check succe
   const r = agentStream({model, instructions: 't', messages: [{role: 'user', content: 'q'}], tools: {lookup, check_stack: checkStub}})
   assert.equal(await r.guardStatus, 'ok')
   assert.deepEqual(seen, [{type: 'auto'}, {type: 'required'}, {type: 'auto'}]) // free at first (off-topic), required until checked
+})
+
+// The recorder: attempt n plays attempts[n-1]; 'fail' is a provider error before any output.
+const replacedRun = [[call('c1', ['A', 'B']), finish('tool-calls')], [...say('**Stacks**\n\nA and B. FIRST_ATTEMPT'), finish('stop')]]
+const okRun = [[call('c2', ['A', 'B']), finish('tool-calls')], [...say('**Conflicts**\n\nA and B share pin 12. SECOND_ATTEMPT'), finish('stop')]]
+function attemptsOf(plays: (unknown[][] | 'fail')[]) {
+  let n = 0
+  return () => {
+    const play = plays[n++]
+    const model = play === 'fail' ? new MockLanguageModelV4({doStream: async () => { throw new Error('provider failed before output') }}) : scripted(play)
+    return agentStream({model, instructions: 't', messages: [{role: 'user', content: 'q'}], tools: {check_stack: checkStub}})
+  }
+}
+const quiet = {beforeAttempt: async () => {}}
+const silence = <T>(p: Promise<T>) => {
+  const [log, err] = [console.log, console.error]
+  console.log = console.error = () => {}
+  return p.finally(() => ([console.log, console.error] = [log, err]))
+}
+
+test('recorder: a replaced first attempt then two provider failures saves nothing', async () => {
+  await assert.rejects(silence(recordExample('q', attemptsOf([replacedRun, 'fail', 'fail']), quiet)), /No usable recording/)
+})
+
+test('recorder: the saved message, status and attempt count come from the same attempt', async () => {
+  const r = await silence(recordExample('q', attemptsOf([replacedRun, okRun]), quiet))
+  assert.equal(r.attempts, 2)
+  assert.equal(r.guardStatus, 'ok')
+  const parts = JSON.stringify(r.message.parts)
+  assert.match(parts, /SECOND_ATTEMPT/)
+  assert.doesNotMatch(parts, /FIRST_ATTEMPT|"c1"/)
 })
 
 test('a matching answer is kept and bound to the checked boards', async () => {
