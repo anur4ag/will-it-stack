@@ -1,0 +1,32 @@
+{
+  "name": "will-it-stack",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test lib/*.test.ts",
+    "import": "node --env-file=.env.local scripts/import.ts",
+    "schema:deploy": "sanity schema deploy"
+  },
+  "dependencies": {
+    "@ai-sdk/mcp": "^2.0.60",
+    "@ai-sdk/react": "^4.0.119",
+    "ai": "^7.0.116",
+    "next": "^16.3.6",
+    "next-sanity": "^13.3.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "sanity": "^6.16.0",
+    "styled-components": "^6.5.3",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}
