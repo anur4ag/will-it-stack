@@ -25,7 +25,7 @@ export type Issue = {
   fix?: string
 }
 export type StackReport = {
-  verdict: 'stacks' | 'stacks-with-changes' | 'conflicts'
+  verdict: 'stacks' | 'stacks-with-changes' | 'conflicts' | 'incomplete'
   soc: Soc
   boards: string[]
   pins: {physical: number; users: {board: string; role: string; signal?: string | null}[]; state: 'shared' | 'exclusive' | 'conflict'}[]
@@ -40,7 +40,8 @@ const SHARED = new Set(['i2c', 'spi', '1-wire', 'power-5v', 'power-3v3', 'ground
 const NEEDS: Record<string, RegExp> = {i2c: /I2C/, spi: /SPI/, i2s: /PCM|I2S/, uart: /UART/, pwm: /PWM/}
 const HAS_EEPROM = new Set(['yes', 'setup', 'detect'])
 
-export function checkStack(boards: Board[], soc: Soc, header: HeaderPin[] = []): StackReport {
+// `missing` lists boards that were asked about but aren't in the data: the result can't confirm those.
+export function checkStack(boards: Board[], soc: Soc, header: HeaderPin[] = [], missing: string[] = []): StackReport {
   const issues: Issue[] = []
   const notes: string[] = []
   const byPin = new Map<number, {board: string; role: string; signal?: string | null}[]>()
@@ -71,22 +72,33 @@ export function checkStack(boards: Board[], soc: Soc, header: HeaderPin[] = []):
   const byAddr = new Map<string, {board: Board; dev: I2cDevice}[]>()
   for (const board of boards) for (const dev of board.i2cDevices ?? []) byAddr.set(dev.address, [...(byAddr.get(dev.address) ?? []), {board, dev}])
   const taken = new Set(byAddr.keys())
+  const free = (d: {dev: I2cDevice}) => (d.dev.alternates ?? []).filter((a) => !taken.has(a))
+  const label = (d: {board: Board; dev: I2cDevice}) => `${d.board.name}'s ${d.dev.device ?? d.dev.label ?? 'device'}`
   for (const [address, devs] of [...byAddr.entries()].sort()) {
-    const owners = new Set(devs.map((d) => d.board.slug))
     let state: 'ok' | 'conflict' | 'fixable' = 'ok'
-    if (owners.size > 1) {
-      // Can one of the colliding devices move to an address nobody else uses?
-      const mover = devs.find((d) => (d.dev.alternates ?? []).some((a) => !taken.has(a)))
-      const to = mover && (mover.dev.alternates ?? []).find((a) => !taken.has(a))
-      state = mover ? 'fixable' : 'conflict'
-      if (to) taken.add(to)
+    if (new Set(devs.map((d) => d.board.slug)).size > 1) {
+      // Every board but one has to move its device off this address. The least movable one stays.
+      // ponytail: greedy assignment; a bipartite matching could find moves greedy misses when alternates overlap across addresses.
+      const [stay, ...others] = [...devs].sort((a, b) => free(a).length - free(b).length)
+      const moves: string[] = []
+      const stuck: string[] = []
+      for (const d of others.filter((d) => d.board.slug !== stay.board.slug)) {
+        const to = free(d)[0]
+        if (to) {
+          taken.add(to)
+          moves.push(`move ${label(d)} to ${to}`)
+        } else stuck.push(label(d))
+      }
+      state = stuck.length ? 'conflict' : 'fixable'
       issues.push({
         kind: 'i2c',
-        severity: mover ? 'fixable' : 'conflict',
+        severity: state,
         boards: devs.map((d) => d.board.name),
         address,
-        detail: devs.map((d) => `${d.board.name}: ${d.dev.device ?? d.dev.label ?? 'device'}`).join(' vs ') + ` at ${address}`,
-        ...(mover && {fix: `Move ${mover.board.name}'s ${mover.dev.device ?? 'device'} to ${to} (the board lists it as an alternate address).`}),
+        detail: devs.map(label).join(' vs ') + ` at ${address}`,
+        ...(stuck.length
+          ? {fix: `${stuck.join(' and ')} ${stuck.length > 1 ? 'have' : 'has'} no free alternate address, so ${address} stays contested${moves.length ? ` even if you ${moves.join(' and ')}` : ''}. An I2C multiplexer is the usual way out.`}
+          : {fix: `${moves.join(' and ')} (listed as alternate addresses); ${label(stay)} keeps ${address}.`.replace(/^m/, 'M')}),
       })
     }
     for (const d of devs) i2c.push({address, board: d.board.name, device: d.dev.device, state})
@@ -112,10 +124,14 @@ export function checkStack(boards: Board[], soc: Soc, header: HeaderPin[] = []):
 
   const fullSize = boards.filter((b) => (b.formFactor === 'HAT' || b.formFactor === 'pHAT') && (b.headerPins ?? 40) >= 40)
   if (fullSize.length > 1) notes.push(`${fullSize.map((b) => b.name).join(fullSize.length === 2 ? ' and ' : ', ')} use the full 40-pin header, so physically stacking them needs a stacking header, extender or splitter.`)
-  const touching = boards.filter((b) => !(b.pins ?? []).length)
-  if (touching.length) notes.push(`No pin data recorded for ${touching.map((b) => b.name).join(', ')}; treat the result as incomplete.`)
+  const noPins = boards.filter((b) => !(b.pins ?? []).length)
+  if (noPins.length) notes.push(`No pin data recorded for ${noPins.map((b) => b.name).join(', ')}.`)
+  if (missing.length) notes.push(`Not in the data: ${missing.join(', ')}.`)
 
+  // A conflict among the boards we do know is still worth reporting; otherwise never confirm a partial stack.
   const hard = issues.some((i) => i.severity === 'conflict')
+  const incomplete = !boards.length || missing.length > 0 || noPins.length > 0
   const fixable = issues.some((i) => i.severity === 'fixable')
-  return {verdict: hard ? 'conflicts' : fixable ? 'stacks-with-changes' : 'stacks', soc, boards: boards.map((b) => b.name), pins, i2c, issues, notes}
+  const verdict = hard ? 'conflicts' : incomplete ? 'incomplete' : fixable ? 'stacks-with-changes' : 'stacks'
+  return {verdict, soc, boards: boards.map((b) => b.name), pins, i2c, issues, notes}
 }

@@ -18,7 +18,7 @@ const CASES: {q: string; boards?: string[]; pi?: string; offTopic?: boolean}[] =
   {q: 'Weather station on a Pi 4: environmental sensors plus a small e-ink display. What stacks?'},
   {q: 'What is a good pizza topping?', offTopic: true},
 ]
-const LABEL = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts'} as const
+const LABEL = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts', incomplete: 'Incomplete'} as const
 const firstBold = (t: string) => t.match(/\*\*([^*]+)\*\*/)?.[1].trim().toLowerCase() ?? ''
 
 const rows = []

@@ -8,7 +8,7 @@ const i2cPins = [
   {physical: 1, role: 'power-3v3'},
   {physical: 6, role: 'ground'},
 ]
-const b = (slug: string, extra: Partial<Board>): Board => ({slug, name: slug, formFactor: 'pHAT', pins: [], i2cDevices: [], ...extra})
+const b = (slug: string, extra: Partial<Board>): Board => ({slug, name: slug, formFactor: 'pHAT', pins: i2cPins, i2cDevices: [], ...extra})
 
 test('boards sharing only buses stack', () => {
   const r = checkStack([b('a', {pins: i2cPins, i2cDevices: [{address: '0x76'}]}), b('c', {pins: i2cPins, i2cDevices: [{address: '0x29'}]})], 'bcm2711')
@@ -47,4 +47,22 @@ test('two ID EEPROM boards warn, and the SoC function table is consulted', () =>
   assert.ok(r.issues.some((i) => i.kind === 'eeprom' && i.severity === 'warning'))
   assert.ok(r.issues.some((i) => i.kind === 'function' && i.pin === 7))
   assert.equal(r.verdict, 'stacks')
+})
+
+test('every extra device at a shared address must move, or it stays a conflict', () => {
+  // Three boards at 0x68; only one can move. Two devices would still share 0x68.
+  const r = checkStack([b('x', {i2cDevices: [{address: '0x68'}]}), b('y', {i2cDevices: [{address: '0x68'}]}), b('z', {i2cDevices: [{address: '0x68', alternates: ['0x69']}]})], 'bcm2711')
+  assert.equal(r.verdict, 'conflicts')
+  assert.equal(r.issues[0].severity, 'conflict')
+  // Two movable, one fixed: fixable, with both moves spelled out and no address reused.
+  const ok = checkStack([b('x', {i2cDevices: [{address: '0x68'}]}), b('y', {i2cDevices: [{address: '0x68', alternates: ['0x69', '0x6a']}]}), b('z', {i2cDevices: [{address: '0x68', alternates: ['0x69']}]})], 'bcm2711')
+  assert.equal(ok.verdict, 'stacks-with-changes')
+  assert.match(ok.issues[0].fix ?? '', /0x69/)
+  assert.match(ok.issues[0].fix ?? '', /0x6a/)
+})
+
+test('missing or empty boards never come back as compatible', () => {
+  assert.equal(checkStack([], 'rp1').verdict, 'incomplete')
+  assert.equal(checkStack([b('x', {pins: i2cPins})], 'rp1', [], ['not-a-real-board']).verdict, 'incomplete')
+  assert.equal(checkStack([b('x', {pins: i2cPins}), b('y', {pins: []})], 'rp1').verdict, 'incomplete')
 })

@@ -115,3 +115,4 @@ footer { color: var(--muted); font-size: 0.8rem; margin-top: 24px; }
 /* Grid children default to min-width: auto, so one long nowrap line would widen the whole column. */
 .thread > *, .msg.assistant > *, .stack, .header { min-width: 0; }
 .md { overflow-wrap: anywhere; }
+.verdict.incomplete { background: var(--warn-bg); color: var(--warn); }

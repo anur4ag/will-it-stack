@@ -20,14 +20,15 @@ export async function runCheck(slugs: string[], pi: string) {
   )
   boards.sort((a, b) => slugs.indexOf(a.slug) - slugs.indexOf(b.slug)) // keep the order the person picked
   const found = new Set(boards.map((b) => b.slug))
+  const unknownBoards = slugs.filter((s) => !found.has(s))
   const model_ = model ?? {slug: 'raspberry-pi-5', name: 'Raspberry Pi 5', soc: 'rp1' as const}
   return {
     pi: model_,
     ...(!model && {note: `Unknown Pi model "${pi}", so the check assumed a Raspberry Pi 5.`}),
-    unknownBoards: slugs.filter((s) => !found.has(s)),
+    unknownBoards,
     boards: boards.map(({pins, i2cDevices, ...b}) => b),
     header,
-    report: checkStack(boards, model_.soc, header),
+    report: checkStack(boards, model_.soc, header, unknownBoards),
   }
 }
 export type CheckResult = Awaited<ReturnType<typeof runCheck>>

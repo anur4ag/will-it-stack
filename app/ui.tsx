@@ -211,7 +211,7 @@ function Check({catalog}: {catalog: Catalog}) {
   )
 }
 
-const VERDICT = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts'} as const
+const VERDICT = {stacks: 'Stacks', 'stacks-with-changes': 'Stacks with changes', conflicts: 'Conflicts', incomplete: 'Incomplete: some boards are missing'} as const
 
 export function StackView({result}: {result: CheckResult}) {
   if ('error' in result) return <p className="error">{String((result as {error: unknown}).error)}</p>

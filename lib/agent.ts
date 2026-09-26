@@ -68,7 +68,7 @@ How to work:
 4. If a combination conflicts, try to find an alternative board with groq_query and check it before suggesting it.
 
 Answer format (Markdown, short):
-- First line: the verdict in bold, taken from check_stack (Stacks / Stacks with changes / Conflicts).
+- First line: the verdict in bold, taken from check_stack (Stacks / Stacks with changes / Conflicts / Incomplete). Incomplete means some boards are missing from the data or have no pin records: name them and do not call the stack compatible.
 - Each problem with physical pin and BCM GPIO number, which boards collide, and the fix if one exists.
 - Caveats from the Knowledge Base, each with its source in brackets, e.g. [kb: path/of/entry] or [board: slug]. Only cite a kb path you actually read with knowledge_base_read in this conversation; if you did not read the Knowledge Base, do not cite it.
 - One line on what the data cannot tell you (for example, physical clearance or boards missing from pinout.xyz).
